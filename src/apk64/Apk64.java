@@ -26,74 +26,118 @@ import net.fornwall.apksigner.KeyStoreFileManager;
 import net.fornwall.apksigner.ZipSigner;
 
 public class Apk64 {
-	private File outputDir;
 	private File templateFile;
-	private File compressedFile;
-	private File outputFile;
+	private File outputDir;
+	private File assetsDir;
+	private File resourceDir;
+	private File metaInfDir;
 	private File manifestFile;
 	private File resourcesFile;
+	private File compressedFile;
+	private File outputFile;
 	private KeyStore keyStore;
 	private String keyAlias;
 	private String keyPassword;
 	private AndroidManifestBlock manifest;
 	private TableBlock resources;
+	
+	public void setConfigs(Apk64Configs configs) throws Exception {
+		System.out.println("[ Applying configs ]");
 
-	public void config(File outputDir, File templateFile) throws Exception {
-		System.out.println("[ Applying Configs ]");
+		setTemplate(configs.templateFile);
+		setOutputDir(configs.outputDir);
+		setKeystore(configs.keyStoreFile, configs.keyAlias, configs.keyPassword);
+		setOutputFile(configs.outputFile);
+	}
 
-		this.outputDir = outputDir;
+	public Apk64 setTemplate(File templateFile) {
+		System.out.println("[ Using template file: '" + templateFile + "' ]");
+
 		this.templateFile = templateFile;
-		this.compressedFile = new File(outputDir.getParent(), "compressed.zip");
-		this.outputFile = new File(outputDir.getParent(), "output.apk");
-		this.manifestFile = new File(outputDir, "AndroidManifest.xml");
-		this.resourcesFile = new File(outputDir, "resources.arsc");
+		
+		return this;
 	}
 	
-	public void setKeystore(File keyStoreFile, String alias, String password) throws Exception {
+	public Apk64 setOutputDir(File outputDir) throws Exception {
+		System.out.println("[ Using output directory: '" + outputDir + "' ]");
+		
+		this.outputDir = outputDir;
+		this.assetsDir = new File(outputDir, "assets");
+		this.resourceDir = new File(outputDir, "res");
+		this.metaInfDir = new File(outputDir, "META-INF");
+		this.manifestFile = new File(outputDir, "AndroidManifest.xml");
+		this.resourcesFile = new File(outputDir, "resources.arsc");
+		this.compressedFile = new File(outputDir.getParent(), "compressed.zip");
+		
+		return this;
+	}
+		
+	public Apk64 setKeystore(File keyStoreFile, String alias, String password) throws Exception {
 		keyAlias = alias;
 		keyPassword = password;
 		
 		loadKeyStore(keyStoreFile);
+		
+		return this;
+	}
+	
+	public Apk64 setOutputFile(File outputFile) {
+		System.out.println("[ Output file: '" + outputFile + "' ]");
+
+		this.outputFile = outputFile;
+		
+		return this;
 	}
 
 	public void loadTemplate() throws Exception {
 		System.out.println("[ Loading template: " + templateFile + " ]");
 
+		createOutputDir();
 		extractApk();
 		removeMetaInf();
 		loadManifest();
 		loadResourcesARSC();
+		
+		System.out.println("[ APK is ready to changes ]");
 	}
 
 	public void finish() throws Exception {
+		System.out.println("[ Finishing... ]");
+		
 		writeManifest();
 		writeResources();
 		compress();
 		sign();
-		deleteOutputDir();
+		deleteTrash();
+		
+		System.out.println("[ Finished ]");
 	}
 
 	private void loadKeyStore(File keyStoreFile) throws Exception {
 		System.out.println("[ Loading KeyStore ]");
-		
-		String keystorePath = keyStoreFile.getAbsolutePath();
-
+	
 		if (!keyStoreFile.exists()) {
 			System.out.println("[ Invalid keyStore: Using default]");
 
 			keyAlias = "alias";
 			keyPassword = "android";
 			
-			System.out.println("Creating new keystore (using '" + keyPassword + "' as password and '" + keyAlias + "' as the key alias).");
+			System.out.println("Creating default keystore (using '" + keyPassword + "' as password and '" + keyAlias + "' as the key alias).");
             
-			CertCreator.DistinguishedNameValues nameValues = new CertCreator.DistinguishedNameValues();
-            nameValues.setCommonName("APK Signer");
-            nameValues.setOrganization("Earth");
-            nameValues.setOrganizationalUnit("Earth");
-            CertCreator.createKeystoreAndKey(keystorePath, keyPassword.toCharArray(), "RSA", 2048, keyAlias, keyPassword.toCharArray(), "SHA1withRSA", 30, nameValues);
+			FileUtils.createKeyStore(keyStoreFile, keyAlias, keyPassword, "APK64", "Earth", "Earth");
         }
 
-		keyStore = KeyStoreFileManager.loadKeyStore(keystorePath, null);
+		keyStore = KeyStoreFileManager.loadKeyStore(keyStoreFile.getAbsolutePath(), null);
+	}
+	
+	private void createOutputDir() {
+		System.out.println("[ Creating output dir: '" + outputDir + "' ]");
+		
+		if (outputDir.exists()) {
+			FileUtils.deleteFiles(outputDir);
+		}
+		
+		outputDir.mkdir();
 	}
 
 	private void extractApk() throws Exception {
@@ -107,9 +151,7 @@ public class Apk64 {
 	private void removeMetaInf() throws Exception {
 		System.out.println("[ Removing META-INF ]");
 
-		File metaInfDir = new File(outputDir, "META-INF");
-
-		if (!deleteFile(metaInfDir)) {
+		if (!FileUtils.deleteFiles(metaInfDir)) {
 			throw new Exception("Error on delete META-INF");
 		}
 	}
@@ -170,10 +212,11 @@ public class Apk64 {
         
 		ZipSigner.signZip(publicKey, privateKey, "SHA1withRSA", compressedFile.getAbsolutePath(), outputFile.getAbsolutePath());
 	}
-	
-	private void deleteOutputDir() {
-		System.out.println("[ Deleting output directory ]");
-//		deleteFile(outputDir);
+
+	private void deleteTrash() {
+		System.out.println("[ Deleting trash ]");
+		FileUtils.deleteFiles(outputDir);
+		FileUtils.deleteFiles(compressedFile);
 	}
 	
 	public void changePackage(String pkg) {
@@ -217,6 +260,17 @@ public class Apk64 {
 		manifest.addUsesPermission(permission);
 	}
 	
+	public void removePermission(String permission) {
+		removeCustomPermission("android.permission." + permission);
+	}
+	
+	public void removeCustomPermission(String permission) {
+		System.out.println("[ Removing permission: " + permission + " ]");
+
+		ResXmlElement permissionElement = manifest.getUsesPermission(permission);
+		manifest.getManifestElement().removeElement(permissionElement);
+	}
+	
 	public void changeVersion(int code, String name) {
 		System.out.println("[ Changing version to '" + name + "' (" + code + ") ]");
 		
@@ -225,19 +279,19 @@ public class Apk64 {
 	}
 	
 	public void replaceResource(String source, File targetFile) {
-		File sourceFile = new File(outputDir, "res/"+source);
+		File sourceFile = new File(resourceDir, source);
 		
 		if (sourceFile.exists()) {
 			System.out.println("[ Replacing '" + source + "' to '" + targetFile + "' ]");
 			
-			deleteFile(sourceFile);
-		    copyFiles(targetFile, sourceFile);
+			FileUtils.deleteFiles(sourceFile);
+		    FileUtils.copyFiles(targetFile, sourceFile);
 		}
 	}
 	
 	public void replaceDrawable(String source, File targetFile) {
 		String[] versions = {"", "-v4", "-v7"};
-		String[] types = {"", "-mdpi", "-hdpi", "-xhdpi", "-xxhdpi", "-xxxhdpi"};
+		String[] types = {"", "-ldpi", "-mdpi", "-hdpi", "-xhdpi", "-xxhdpi", "-xxxhdpi"};
 		
 		for (String version : versions) {
 			for (String type : types) {
@@ -246,58 +300,16 @@ public class Apk64 {
 		}
 	}
 	
+	public void addToAssets(File... assetFiles) {
+		for (File file : assetFiles) {
+			File inAssets = new File(assetsDir, file.getName());
+			FileUtils.copyFiles(file, inAssets);
+		}
+	}
+	
 	public File getAssets() {
-		File assetsDir = new File(outputDir, "assets");
 		assetsDir.mkdir();
 		
 		return assetsDir;
-	}
-	
-	private boolean deleteFile(File file) {
-		Scanner sc = new Scanner(System.in);
-		
-		System.out.println("Are you sure to delete \""+file+"\"? (Y/any)");
-//		if (!sc.next().equals("Y")) {
-//			return false;
-//		}
-		
-		if (file.isDirectory()) {
-			for (File f : file.listFiles()) {
-				if (!deleteFile(f)) {
-					return false;
-				}
-			}
-		}
-		
-		file.delete();
-		
-		return true;
-	}
-	
-	public static void copyFiles(File originFile, File targetFile) {
-		final Path originPath = originFile.toPath();
-		final Path targetPath = targetFile.toPath();
-
-		try {
-			Files.walkFileTree(originPath, new SimpleFileVisitor<Path>() {
-					@Override
-					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-						Path targetFile = targetPath.resolve(originPath.relativize(file));
-						Files.copy(file, targetFile);
-
-						return FileVisitResult.CONTINUE;
-					}
-
-					@Override
-					public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-						Path targetDir = targetPath.resolve(originPath.relativize(dir));
-						Files.createDirectories(targetDir);
-
-						return FileVisitResult.CONTINUE;
-					}
-				});
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 	}
 }
