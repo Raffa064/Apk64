@@ -1,0 +1,18 @@
+Follow these steps to prevent bugs in your moving objects:
+
+1. Calculate translations:
+   velX = 1
+
+2. Update translations:
+   pos.x += velX
+
+3. Render:
+   batch.draw(texture, pos.x, pos.y)
+
+If you don't follow this order, the movement may cause a delayed effect.
+
+This is specilly important in the order that you place components in your objects:
+
+	Scene.createObject('Object', playerController, transform, image)
+	
+In the example, playerController is a component that can apply player movements, transform is a Transform2D component, that will update global transformations, and image is a Image component, that will renderize player sprite in the global coordinates

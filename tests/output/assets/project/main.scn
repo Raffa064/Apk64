@@ -1,0 +1,15 @@
+{
+	name: 'Main',
+    children: [
+      {
+        name: 'MainLoader',
+        components: [
+          {
+          	name: 'MainLoader',
+            exportedProps: []
+          }
+        ],
+        children: []
+      }
+    ]
+}
