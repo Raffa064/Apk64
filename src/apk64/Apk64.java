@@ -26,6 +26,23 @@ import net.fornwall.apksigner.KeyStoreFileManager;
 import net.fornwall.apksigner.ZipSigner;
 
 public class Apk64 {
+	public static final int SCREEN_ORIENTATION_BEHIND = 3;
+    public static final int SCREEN_ORIENTATION_FULL_SENSOR = 10;
+    public static final int SCREEN_ORIENTATION_FULL_USER = 13;
+    public static final int SCREEN_ORIENTATION_LANDSCAPE = 0;
+    public static final int SCREEN_ORIENTATION_LOCKED = 14;
+    public static final int SCREEN_ORIENTATION_NOSENSOR = 5;
+    public static final int SCREEN_ORIENTATION_PORTRAIT = 1;
+    public static final int SCREEN_ORIENTATION_REVERSE_LANDSCAPE = 8;
+    public static final int SCREEN_ORIENTATION_REVERSE_PORTRAIT = 9;
+    public static final int SCREEN_ORIENTATION_SENSOR = 4;
+    public static final int SCREEN_ORIENTATION_SENSOR_LANDSCAPE = 6;
+    public static final int SCREEN_ORIENTATION_SENSOR_PORTRAIT = 7;
+    public static final int SCREEN_ORIENTATION_UNSPECIFIED = -1;
+    public static final int SCREEN_ORIENTATION_USER = 2;
+    public static final int SCREEN_ORIENTATION_USER_LANDSCAPE = 11;
+    public static final int SCREEN_ORIENTATION_USER_PORTRAIT = 12;
+	
 	private File templateFile;
 	private File outputDir;
 	private File assetsDir;
@@ -305,6 +322,29 @@ public class Apk64 {
 			File inAssets = new File(assetsDir, file.getName());
 			FileUtils.copyFiles(file, inAssets);
 		}
+	}
+	
+	public ResXmlElement getActivity(String activityNameWithPackage) {
+		for (ResXmlElement activity : manifest.listActivities()) {
+			String name = activity.searchAttributeByResourceId(AndroidManifestBlock.ID_name).getValueAsString();
+			
+			if (name.equals(activityNameWithPackage)) {
+				return activity;
+			}
+		}
+		
+		return null;
+	}
+	
+	public void changeActivityOrientation(String activityNameWithPackage, int orientation) {
+		System.out.println("[ Changing activity orientation: '" + activityNameWithPackage + "' ]");
+		
+		ResXmlElement activity = getActivity(activityNameWithPackage);
+		
+		System.out.println(activity);
+		
+		ResXmlAttribute attr =  activity.getOrCreateAndroidAttribute("screenOrientation", AndroidManifestBlock.ID_screenOrientation);
+		attr.setValueAsInteger(orientation);
 	}
 	
 	public File getAssets() {

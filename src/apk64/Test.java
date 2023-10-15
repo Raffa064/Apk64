@@ -43,6 +43,7 @@ public class Test {
 		apk64.changePackage("com.example.game");
 		apk64.changeVersion(2, "1.1 Sokoban");
 		apk64.changeAppName("Sokoban");
+		apk64.changeActivityOrientation("com.raffa064.engine.MainActivity", Apk64.SCREEN_ORIENTATION_LANDSCAPE);
 		
 		// Change permissions
 		apk64.addPermission("WRITE_EXTERNAL_STORAGE");

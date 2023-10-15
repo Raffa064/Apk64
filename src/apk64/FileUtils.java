@@ -8,8 +8,22 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import net.fornwall.apksigner.CertCreator;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 
 public class FileUtils {
+	public static String readFile(File file) throws Exception {
+		FileInputStream fis = new FileInputStream(file);
+
+		byte[] buffer = new byte[fis.available()];
+		fis.read(buffer);
+
+		fis.close();
+
+		String content = new String(buffer);
+		return content;
+	}
+
 	public static boolean deleteFiles(File file) {
 		System.out.println("Deleting: "+file);
 
@@ -52,16 +66,16 @@ public class FileUtils {
 			e.printStackTrace();
 		}
 	}
-	
+
 	public static void createKeyStore(File keyStoreFile, String keyAlias, String keyPassword, String commonName, String organization, String organizationUnit) {
 		System.out.println("Creating new keystore (using '" + keyPassword + "' as password and '" + keyAlias + "' as the key alias).");
 
 		CertCreator.DistinguishedNameValues nameValues = new CertCreator.DistinguishedNameValues();
-		
+
 		nameValues.setCommonName(commonName);
 		nameValues.setOrganization(organization);
 		nameValues.setOrganizationalUnit(organizationUnit);
-		
+
 		CertCreator.createKeystoreAndKey(keyStoreFile.getAbsolutePath(), keyPassword.toCharArray(), "RSA", 2048, keyAlias, keyPassword.toCharArray(), "SHA1withRSA", 30, nameValues);
 	}
 }
