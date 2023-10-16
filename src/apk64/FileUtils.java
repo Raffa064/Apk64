@@ -1,6 +1,8 @@
 package apk64;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -8,20 +10,37 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import net.fornwall.apksigner.CertCreator;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 
 public class FileUtils {
-	public static String readFile(File file) throws Exception {
+	public static byte[] readFile(File file) throws Exception {
 		FileInputStream fis = new FileInputStream(file);
 
 		byte[] buffer = new byte[fis.available()];
 		fis.read(buffer);
 
 		fis.close();
-
+		
+		return buffer;
+	}
+	
+	public static String readFileString(File file) throws Exception {
+		byte[] buffer = readFile(file);
 		String content = new String(buffer);
 		return content;
+	}
+	
+	public static void writeFile(File file, byte[] buffer) throws Exception {
+		FileOutputStream fis = new FileOutputStream(file);
+		
+		fis.write(buffer);
+		
+		fis.flush();
+		fis.close();
+	}
+	
+	public static void writeFile(File file, String content) throws Exception {
+		byte[] buffer = content.getBytes();
+		writeFile(file, buffer);
 	}
 
 	public static boolean deleteFiles(File file) {
