@@ -11,12 +11,12 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedInputStream;
 
 public class ZipUtils {
-	public static void zip(File[] files, File zipFile) throws Exception {
+	public static void zip(File[] files, File zipFile, int bufferSize) throws Exception {
 		FileOutputStream fos = new FileOutputStream(zipFile);
 		ZipOutputStream zos = new ZipOutputStream(fos);
 		
 		for (File file : files) {
-			addFileToZip("", file, zos);
+			addFileToZip("", file, zos, bufferSize);
 		}
 		
 		zos.flush();
@@ -26,7 +26,7 @@ public class ZipUtils {
 		fos.close();
 	}
 	
-	private static void addFileToZip(String path, File file, ZipOutputStream zos) throws IOException {
+	private static void addFileToZip(String path, File file, ZipOutputStream zos, int bufferSize) throws IOException {
 		if (file.isFile()) {
 			String entryName = path + file.getName();
 			System.out.println("\tCompressing: "+entryName);
@@ -37,7 +37,7 @@ public class ZipUtils {
 			FileInputStream fis = new FileInputStream(file);
 			BufferedInputStream bis = new BufferedInputStream(fis);
 			
-			byte[] buffer = new byte[1024];
+			byte[] buffer = new byte[bufferSize];
 			int length = 0;
 			
 			while ((length = bis.read(buffer)) > 0) {
@@ -51,7 +51,7 @@ public class ZipUtils {
 		}
 		
 		for (File f : file.listFiles()) {
-			addFileToZip(path + file.getName() + "/", f, zos);
+			addFileToZip(path + file.getName() + "/", f, zos, bufferSize);
 		}
 	}
 	

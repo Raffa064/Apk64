@@ -43,6 +43,7 @@ public class Apk64 {
     public static final int SCREEN_ORIENTATION_USER_LANDSCAPE = 11;
     public static final int SCREEN_ORIENTATION_USER_PORTRAIT = 12;
 	
+	private int bufferSize = 1024;
 	private File templateFile;
 	private File outputDir;
 	private File assetsDir;
@@ -57,6 +58,12 @@ public class Apk64 {
 	private String keyPassword;
 	private AndroidManifestBlock manifest;
 	private TableBlock resources;
+	
+	public Apk64() {}
+
+	public Apk64(int bufferSize) {
+		this.bufferSize = bufferSize;
+	}
 	
 	public void setConfigs(Apk64Configs configs) throws Exception {
 		System.out.println("[ Applying configs ]");
@@ -218,7 +225,7 @@ public class Apk64 {
 	private void compress() throws Exception {
 		System.out.println("[ Compressing modified apk ]");
 		
-		ZipUtils.zip(outputDir.listFiles(), compressedFile);
+		ZipUtils.zip(outputDir.listFiles(), compressedFile, bufferSize);
 	}
 
 	private void sign() throws KeyStoreException, GeneralSecurityException, IOException {
