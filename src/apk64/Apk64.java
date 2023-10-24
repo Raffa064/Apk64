@@ -252,12 +252,26 @@ public class Apk64 {
 		System.out.println("[ Changing name to '" + name + "' ]");
 		
 		// Change on manifest
-		ResXmlAttribute label = manifest.getApplicationElement().searchAttributeByResourceId(AndroidManifestBlock.ID_label);
+		ResXmlElement application = manifest.getApplicationElement();
+		ResXmlAttribute label = application.searchAttributeByResourceId(AndroidManifestBlock.ID_label);
+		
+		if (label == null) {
+			label = new ResXmlAttribute();
+			label.setNameResourceID(AndroidManifestBlock.ID_label);
+			application.addAttribute(label);
+		} 
+			
 		label.setValueAsString(name);
 		
 		for (ResXmlElement activity : manifest.listActivities()) {
 			label = activity.searchAttributeByResourceId(AndroidManifestBlock.ID_label);
-			label.setValueAsString(name);
+			if (label == null) {
+				label = new ResXmlAttribute();
+				label.setNameResourceID(AndroidManifestBlock.ID_label);
+				activity.addAttribute(label);
+			}
+			
+			label.setValueAsString(name);	
 		}
     }
 	
