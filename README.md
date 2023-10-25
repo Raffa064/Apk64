@@ -90,6 +90,6 @@ apk64.finish();
 ```
 
 ## Th'rd part libs
-- (ARSCLib 1.1.3)[https://github.com/REAndroid/ARSCLib/tree/9e029648845c6f9f99bdfa60a0ce2bcc51564219] to modify manifest/resources binary
-- (Forwall's ApkSigner 0.7)[https://github.com/fornwall/apksigner] to sign modified apk
-- (Spongy Casttle 1.58.0.0)[https://rtyley.github.io/spongycastle/] as dependence to forwall's ApkSigner
+- [ARSCLib 1.1.3](https://github.com/REAndroid/ARSCLib/tree/9e029648845c6f9f99bdfa60a0ce2bcc51564219) to modify manifest/resources binary
+- [Forwall's ApkSigner 0.7](https://github.com/fornwall/apksigner) to sign modified apk
+- [Spongy Casttle 1.58.0.0](https://rtyley.github.io/spongycastle/) as dependence to forwall's ApkSigner
