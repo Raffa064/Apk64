@@ -8,7 +8,7 @@ APK64 is a simple tool to modify APK files in java. I wrote this to use in my ga
 
 First of all, you need an apk file to modify, but plaese note that APK64 can't apply changes to the original code of the APK. It can only change its metadata, such as the name, package, version, icon and other details.
 
-```
+```java
 ...
 
 File templateFile = ...;  // APK to modify
@@ -49,7 +49,7 @@ Apk64 has a few standard changes that you can do with the APK:
 
 Bellow you can view a full example for all standard changes:
 
-```
+```java
 ...
 apk64.loadTemplate();
 
