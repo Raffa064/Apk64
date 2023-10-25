@@ -29,7 +29,6 @@ public class ZipUtils {
 	private static void addFileToZip(String path, File file, ZipOutputStream zos, int bufferSize) throws IOException {
 		if (file.isFile()) {
 			String entryName = path + file.getName();
-			System.out.println("\tCompressing: "+entryName);
 			
 			ZipEntry entry = new ZipEntry(entryName);
 			zos.putNextEntry(entry);

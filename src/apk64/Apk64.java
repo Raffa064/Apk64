@@ -1,18 +1,16 @@
 package apk64;
 
+import apk64.Logger.Profile;
 import com.reandroid.archive.APKArchive;
 import com.reandroid.lib.arsc.chunk.PackageBlock;
 import com.reandroid.lib.arsc.chunk.TableBlock;
 import com.reandroid.lib.arsc.chunk.xml.AndroidManifestBlock;
 import com.reandroid.lib.arsc.chunk.xml.ResXmlAttribute;
 import com.reandroid.lib.arsc.chunk.xml.ResXmlElement;
+import com.reandroid.lib.arsc.group.EntryGroup;
+import com.reandroid.lib.arsc.value.EntryBlock;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -20,8 +18,6 @@ import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.Collection;
 import java.util.List;
-import java.util.Scanner;
-import net.fornwall.apksigner.CertCreator;
 import net.fornwall.apksigner.KeyStoreFileManager;
 import net.fornwall.apksigner.ZipSigner;
 
@@ -43,6 +39,9 @@ public class Apk64 {
     public static final int SCREEN_ORIENTATION_USER_LANDSCAPE = 11;
     public static final int SCREEN_ORIENTATION_USER_PORTRAIT = 12;
 	
+	public static final String[] RESOURCE_VERSIONS = {"", "-v4", "-v7"};
+	public static final String[] RESOURCE_RESOLUTIONS = {"", "-ldpi", "-mdpi", "-hdpi", "-xhdpi", "-xxhdpi", "-xxxhdpi"};
+	
 	private int bufferSize = 1024;
 	private File templateFile;
 	private File outputDir;
@@ -58,6 +57,7 @@ public class Apk64 {
 	private String keyPassword;
 	private AndroidManifestBlock manifest;
 	private TableBlock resources;
+	private Logger logger = new Logger();
 	
 	public Apk64() {}
 
@@ -65,8 +65,12 @@ public class Apk64 {
 		this.bufferSize = bufferSize;
 	}
 	
-	public void setConfigs(Apk64Configs configs) throws Exception {
-		System.out.println("[ Applying configs ]");
+	public void setLogProfile(Profile profile) {
+		logger.setProfile(profile);
+	}
+	
+	public void setConfigs(Apk64Configs configs) {
+		logger.D("[ Applying configs ]");
 
 		setTemplate(configs.templateFile);
 		setOutputDir(configs.outputDir);
@@ -75,15 +79,15 @@ public class Apk64 {
 	}
 
 	public Apk64 setTemplate(File templateFile) {
-		System.out.println("[ Using template file: '" + templateFile + "' ]");
+		logger.D("[ Using template file: '" + templateFile + "' ]");
 
 		this.templateFile = templateFile;
 		
 		return this;
 	}
 	
-	public Apk64 setOutputDir(File outputDir) throws Exception {
-		System.out.println("[ Using output directory: '" + outputDir + "' ]");
+	public Apk64 setOutputDir(File outputDir) {
+		logger.D("[ Using output directory: '" + outputDir + "' ]");
 		
 		this.outputDir = outputDir;
 		this.assetsDir = new File(outputDir, "assets");
@@ -96,7 +100,7 @@ public class Apk64 {
 		return this;
 	}
 		
-	public Apk64 setKeystore(File keyStoreFile, String alias, String password) throws Exception {
+	public Apk64 setKeystore(File keyStoreFile, String alias, String password) {
 		keyAlias = alias;
 		keyPassword = password;
 		
@@ -106,15 +110,19 @@ public class Apk64 {
 	}
 	
 	public Apk64 setOutputFile(File outputFile) {
-		System.out.println("[ Output file: '" + outputFile + "' ]");
+		logger.D("[ Output file: '" + outputFile + "' ]");
 
 		this.outputFile = outputFile;
 		
 		return this;
 	}
 
-	public void loadTemplate() throws Exception {
-		System.out.println("[ Loading template: " + templateFile + " ]");
+	public void loadTemplate() {
+		logger.D("[ Loading template: " + templateFile + " ]");
+		
+		if (!templateFile.exists()) {
+			throw new Error(logger, "Error on load template file");
+		}
 
 		createOutputDir();
 		extractApk();
@@ -122,40 +130,47 @@ public class Apk64 {
 		loadManifest();
 		loadResourcesARSC();
 		
-		System.out.println("[ APK is ready to changes ]");
+		logger.W("[ APK is ready to changes ]");
+		
+		Chrono.start(templateFile.getName());
 	}
 
-	public void finish() throws Exception {
-		System.out.println("[ Finishing... ]");
+	public void finish() {
+		logger.D("[ Finishing... ]");
 		
 		writeManifest();
 		writeResources();
 		compress();
 		sign();
 		deleteTrash();
-		
-		System.out.println("[ Finished ]");
+
+		long time = Chrono.end(templateFile.getName());		
+		logger.D("[ Finished in " + (time / 1000000000) + "s ]");
 	}
 
-	private void loadKeyStore(File keyStoreFile) throws Exception {
-		System.out.println("[ Loading KeyStore ]");
+	private void loadKeyStore(File keyStoreFile) {
+		logger.D("[ Loading KeyStore ]");
 	
 		if (!keyStoreFile.exists()) {
-			System.out.println("[ Invalid keyStore: Using default]");
+			logger.D("[ Invalid keyStore: Using default]");
 
 			keyAlias = "alias";
 			keyPassword = "android";
 			
-			System.out.println("Creating default keystore (using '" + keyPassword + "' as password and '" + keyAlias + "' as the key alias).");
+			logger.W("Creating default keystore (using '" + keyPassword + "' as password and '" + keyAlias + "' as the key alias).");
             
 			FileUtils.createKeyStore(keyStoreFile, keyAlias, keyPassword, "APK64", "Earth", "Earth");
         }
 
-		keyStore = KeyStoreFileManager.loadKeyStore(keyStoreFile.getAbsolutePath(), null);
+		try {
+			keyStore = KeyStoreFileManager.loadKeyStore(keyStoreFile.getAbsolutePath(), null);
+		} catch (Exception e) {
+			throw new Error(logger, "Error on load keystore file: " + e.getMessage());
+		}
 	}
 	
 	private void createOutputDir() {
-		System.out.println("[ Creating output dir: '" + outputDir + "' ]");
+		logger.D("[ Creating output dir: '" + outputDir + "' ]");
 		
 		if (outputDir.exists()) {
 			FileUtils.deleteFiles(outputDir);
@@ -164,92 +179,118 @@ public class Apk64 {
 		outputDir.mkdir();
 	}
 
-	private void extractApk() throws Exception {
-		System.out.println("[ Extracting apk ]");
+	private void extractApk() {
+		logger.D("[ Extracting apk ]");
 
-		APKArchive archive = APKArchive.loadZippedApk(templateFile);
-
-		archive.extract(outputDir);
-	}
-
-	private void removeMetaInf() throws Exception {
-		System.out.println("[ Removing META-INF ]");
-
-		if (!FileUtils.deleteFiles(metaInfDir)) {
-			throw new Exception("Error on delete META-INF");
+		try {
+			APKArchive archive = APKArchive.loadZippedApk(templateFile);
+			archive.extract(outputDir);
+		} catch (IOException e) {
+			throw new Error(logger, "Error on extract apk: " + e.getMessage());
 		}
 	}
 
-	private void loadManifest() throws Exception {
-		System.out.println("[ Loading manifest ]");
-		
-        manifest = AndroidManifestBlock.load(manifestFile);
+	private void removeMetaInf() {
+		logger.D("[ Removing META-INF ]");
 
-        System.out.println("Package name: " + manifest.getPackageName());
-
-        List<String> permissions = manifest.getUsesPermissions();
-		
-        for (String permission : permissions){
-			System.out.println("Uses permission: " + permission);
-        }
+		if (!FileUtils.deleteFiles(metaInfDir)) {
+			throw new Error(logger, "Error on delete META-INF");
+		}
 	}
 
-	private void loadResourcesARSC() throws Exception {
-		System.out.println("[ Loading resources.arsc ]");
+	private void loadManifest() {
+		logger.D("[ Loading manifest ]");
 		
-        resources = TableBlock.load(resourcesFile);
+        try {
+			manifest = AndroidManifestBlock.load(manifestFile);
+			logger.D("Package name: " + manifest.getPackageName());
 
-        Collection<PackageBlock> packageBlockList = resources.listPackages();
-		
-        System.out.println("Packages count = "+packageBlockList.size());
-        for (PackageBlock packageBlock : packageBlockList){
-			System.out.println("Package id = " + packageBlock.getId() + ", name = " + packageBlock.getName());
-        }
+			List<String> permissions = manifest.getUsesPermissions();
+			for (String permission : permissions) {
+				logger.D("Uses permission: " + permission);
+			}
+		} catch (IOException e) {
+			throw new Error(logger, "Error on load manifest.xml: " + e.getMessage());
+		}
 	}
 
-	private void writeManifest() throws Exception {
-		System.out.println("[ Writing manifest ]");
+	private void loadResourcesARSC() {
+		logger.D("[ Loading resources.arsc ]");
 		
-		System.out.println(manifest.toString());
-		manifest.refresh();
-        manifest.writeBytes(manifestFile);
+        try {
+			resources = TableBlock.load(resourcesFile);
+
+			Collection<PackageBlock> packageBlockList = resources.listPackages();
+			logger.D("-> Packages count: " + packageBlockList.size());
+
+			for (PackageBlock packageBlock : packageBlockList) {
+				logger.D("\tPackage: " + packageBlock.getName());
+			}
+		} catch (IOException e) {
+			throw new Error(logger, "Error on load resources.arsc: " + e.getMessage());
+		}
 	}
 
-	private void writeResources() throws IOException {
-		System.out.println("[ Writing resources ]");
+	private void writeManifest() {
+		logger.D("[ Writing manifest ]");
 		
-		resources.refresh();
-        resources.writeBytes(resourcesFile);	
+		try {
+			logger.D(manifest.toString());
+			manifest.refresh();
+			manifest.writeBytes(manifestFile);
+		} catch (IOException e) {
+			throw new Error(logger, "Error on write manifest: " + e.getMessage());
+		}
 	}
 
-	private void compress() throws Exception {
-		System.out.println("[ Compressing modified apk ]");
+	private void writeResources() {
+		logger.D("[ Writing resources ]");
 		
-		ZipUtils.zip(outputDir.listFiles(), compressedFile, bufferSize);
+		try {
+			resources.refresh();
+			resources.writeBytes(resourcesFile);
+		} catch (IOException e) {
+			throw new Error(logger, "Error on write resources.arsc: " + e.getMessage());
+		}	
 	}
 
-	private void sign() throws KeyStoreException, GeneralSecurityException, IOException {
-		System.out.println("[ Signing apk ]");
+	private void compress() {
+		logger.D("[ Compressing modified apk ]");
 		
-        X509Certificate publicKey = (X509Certificate) keyStore.getCertificate(keyAlias);
-        PrivateKey privateKey = (PrivateKey) keyStore.getKey(keyAlias, keyPassword.toCharArray());
-        
-		ZipSigner.signZip(publicKey, privateKey, "SHA1withRSA", compressedFile.getAbsolutePath(), outputFile.getAbsolutePath());
+		try {
+			ZipUtils.zip(outputDir.listFiles(), compressedFile, bufferSize);
+		} catch (Exception e) {
+			throw new Error(logger, "Error on compress files: " + e.getMessage());
+		}
+	}
+
+	private void sign() {
+		logger.D("[ Signing apk ]");
+		
+        try {
+			X509Certificate publicKey = (X509Certificate) keyStore.getCertificate(keyAlias);
+			PrivateKey privateKey = (PrivateKey) keyStore.getKey(keyAlias, keyPassword.toCharArray());
+
+			ZipSigner.signZip(publicKey, privateKey, "SHA1withRSA", compressedFile.getAbsolutePath(), outputFile.getAbsolutePath());
+		} catch (Exception e) {
+			throw new Error(logger, "Error on sign apk: " + e.getMessage());
+		}
 	}
 
 	private void deleteTrash() {
-		System.out.println("[ Deleting trash ]");
+		logger.D("[ Deleting trash ]");
+		
 		FileUtils.deleteFiles(outputDir);
 		FileUtils.deleteFiles(compressedFile);
 	}
 	
 	public void changePackage(String pkg) {
-		System.out.println("[ Changing package to '" + pkg + "' ]");
+		logger.D("[ Changing package to '" + pkg + "' ]");
 		manifest.setPackageName(pkg);
 	}
 	
 	public void changeAppName(String name) {
-		System.out.println("[ Changing name to '" + name + "' ]");
+		logger.D("[ Changing name to '" + name + "' ]");
 		
 		// Change on manifest
 		ResXmlElement application = manifest.getApplicationElement();
@@ -275,25 +316,51 @@ public class Apk64 {
 		}
     }
 	
-	public void changeAppIcon(int id) {
-		System.out.println("[ Changing icon to '" + id + "' ]");
+	public void changeAppIcon(int resId) {
+		logger.D("[ Changing icon to '" + resId + "' ]");
 
 		// Change on manifest
 		ResXmlAttribute label = manifest.getApplicationElement().searchAttributeByResourceId(AndroidManifestBlock.ID_icon);
-		label.setValueAsResourceId(id);
+		label.setValueAsResourceId(resId);
 
 		for (ResXmlElement activity : manifest.listActivities()) {
 			label = activity.searchAttributeByResourceId(AndroidManifestBlock.ID_icon);
-			label.setValueAsResourceId(id);
+			label.setValueAsResourceId(resId);
 		}
     }
+	
+	public void replaceAppIcon(File newIconFile) {
+		logger.D("[ Replacing app icon ]");
+		logger.W("Warning: replaceAppIcon() may not work if the apk has round icon");
+
+		logger.D("-> Replacing by resource names...");
+		for (PackageBlock pkg : resources.listPackages()) {
+			EntryGroup iconGroup = pkg.getEntryGroup(manifest.getIconResourceId());
+			logger.D("\t"+pkg.getName()+": "+iconGroup.getSpecName());
+			
+			for (EntryBlock entry : iconGroup.getItems()) {
+				File oldIconFile = new File(outputDir, entry.getValueAsString());
+				
+				String parentName = oldIconFile.getParentFile().getName();
+				String name = oldIconFile.getName();
+				
+				logger.D("\t" + parentName + "/" + name);
+				
+				FileUtils.deleteFiles(oldIconFile);
+				
+				if (FileUtils.isImage(oldIconFile) == FileUtils.isImage(newIconFile)) {
+					FileUtils.copyFiles(newIconFile, oldIconFile);
+		        }
+			}
+		}
+	}
 	
 	public void addPermission(String permission) {
 		addCustomPermission("android.permission." + permission);
 	}
 	
 	public void addCustomPermission(String permission) {
-		System.out.println("[ Adding permission: " + permission + " ]");
+		logger.D("[ Adding permission: " + permission + " ]");
 		
 		manifest.addUsesPermission(permission);
 	}
@@ -303,14 +370,14 @@ public class Apk64 {
 	}
 	
 	public void removeCustomPermission(String permission) {
-		System.out.println("[ Removing permission: " + permission + " ]");
+		logger.D("[ Removing permission: " + permission + " ]");
 
 		ResXmlElement permissionElement = manifest.getUsesPermission(permission);
 		manifest.getManifestElement().removeElement(permissionElement);
 	}
 	
 	public void changeVersion(int code, String name) {
-		System.out.println("[ Changing version to '" + name + "' (" + code + ") ]");
+		logger.D("[ Changing version to '" + name + "' (" + code + ") ]");
 		
 	    manifest.setVersionCode(code);
         manifest.setVersionName(name);
@@ -320,22 +387,36 @@ public class Apk64 {
 		File sourceFile = new File(resourceDir, source);
 		
 		if (sourceFile.exists()) {
-			System.out.println("[ Replacing '" + source + "' to '" + targetFile + "' ]");
+			logger.D("[ Replacing '" + source + "' to '" + targetFile + "' ]");
 			
 			FileUtils.deleteFiles(sourceFile);
 		    FileUtils.copyFiles(targetFile, sourceFile);
 		}
 	}
 	
-	public void replaceDrawable(String source, File targetFile) {
-		String[] versions = {"", "-v4", "-v7"};
-		String[] types = {"", "-ldpi", "-mdpi", "-hdpi", "-xhdpi", "-xxhdpi", "-xxxhdpi"};
-		
-		for (String version : versions) {
-			for (String type : types) {
-				replaceResource("drawable" + type + version + "/" + source, targetFile);
+	public void replaceResource(String dir, String source, File targetFile) {
+		for (String version : RESOURCE_VERSIONS) {
+			for (String resolution : RESOURCE_RESOLUTIONS) {
+				for (String extension : FileUtils.IMAGE_EXTENSIONS) {
+					File sourceFile = new File(resourceDir+"/"+dir+version+resolution, source+extension);
+					
+					if (sourceFile.exists()) {
+						logger.D("[ Replacing '" + source + "' to '" + targetFile + "' ]");
+
+						FileUtils.deleteFiles(sourceFile);
+						FileUtils.copyFiles(targetFile, sourceFile);
+					}
+				}
 			}
 		}
+	}
+
+	public void replaceDrawable(String source, File targetFile) {
+		replaceResource("drawable", source, targetFile);
+	}
+	
+	public void replaceMipmap(String source, File targetFile) {
+		replaceResource("mipmap", source, targetFile);
 	}
 	
 	public void addToAssets(File... assetFiles) {
@@ -358,12 +439,9 @@ public class Apk64 {
 	}
 	
 	public void changeActivityOrientation(String activityNameWithPackage, int orientation) {
-		System.out.println("[ Changing activity orientation: '" + activityNameWithPackage + "' ]");
+		logger.D("[ Changing activity orientation: '" + activityNameWithPackage + "' ]");
 		
-		ResXmlElement activity = getActivity(activityNameWithPackage);
-		
-		System.out.println(activity);
-		
+		ResXmlElement activity = getActivity(activityNameWithPackage);		
 		ResXmlAttribute attr =  activity.getOrCreateAndroidAttribute("screenOrientation", AndroidManifestBlock.ID_screenOrientation);
 		attr.setValueAsInteger(orientation);
 	}
@@ -372,5 +450,14 @@ public class Apk64 {
 		assetsDir.mkdir();
 		
 		return assetsDir;
+	}
+	
+	public static class Error extends java.lang.Error {
+		private Logger logger;
+
+		public Error(Logger logger, String msg) {
+			super(msg);
+			this.logger = logger;
+		}
 	}
 }

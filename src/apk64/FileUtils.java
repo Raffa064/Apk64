@@ -12,6 +12,29 @@ import java.nio.file.attribute.BasicFileAttributes;
 import net.fornwall.apksigner.CertCreator;
 
 public class FileUtils {
+	public static String[] IMAGE_EXTENSIONS = { ".png", ".jpg", ".jpeg", ".9.png" };
+	public static String[] XML_EXTENSIONS = { "xml", "svg", "xls", "xld" };
+	
+	public static boolean checkExtension(File file, String[] extensionArray) {
+		String name = file.getName();
+		
+		for (String extension : extensionArray) {
+			if (name.endsWith(extension)) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+
+	public static boolean isImage(File file) {
+		return checkExtension(file, IMAGE_EXTENSIONS);
+	}
+	
+	public static boolean isXml(File file) {
+		return checkExtension(file, XML_EXTENSIONS);
+	}
+	
 	public static byte[] readFile(File file) throws Exception {
 		FileInputStream fis = new FileInputStream(file);
 
@@ -44,8 +67,6 @@ public class FileUtils {
 	}
 
 	public static boolean deleteFiles(File file) {
-		System.out.println("Deleting: "+file);
-
 		if (file.isDirectory()) {
 			for (File f : file.listFiles()) {
 				if (!deleteFiles(f)) {
@@ -87,8 +108,6 @@ public class FileUtils {
 	}
 
 	public static void createKeyStore(File keyStoreFile, String keyAlias, String keyPassword, String commonName, String organization, String organizationUnit) {
-		System.out.println("Creating new keystore (using '" + keyPassword + "' as password and '" + keyAlias + "' as the key alias).");
-
 		CertCreator.DistinguishedNameValues nameValues = new CertCreator.DistinguishedNameValues();
 
 		nameValues.setCommonName(commonName);
