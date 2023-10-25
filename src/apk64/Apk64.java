@@ -453,11 +453,10 @@ public class Apk64 {
 	}
 	
 	public static class Error extends java.lang.Error {
-		private Logger logger;
-
 		public Error(Logger logger, String msg) {
 			super(msg);
-			this.logger = logger;
+			
+			logger.E(msg);
 		}
 	}
 }
