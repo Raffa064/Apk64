@@ -6,12 +6,16 @@ OUTPUT_APK64="$OUTPUT/apk64"
 
 # Extract libs
 if [ ! -e "$LOCKFILE" ]; then
-  mkdir ouput
-  find "$LIBS" -regex ".*\.jar" | while read -r j; do
-    unzip $j -d "$OUTPUT"
+  mkdir $OUTPUT
+  jars=$(find "$LIBS" -regex ".*\.jar") 
+  for j in $jars; do
+    echo $(basename $j)
+    yes | unzip $j -d $OUTPUT
   done
+
   touch $LOCKFILE
 fi
+
 
 # Get apk64 ".class" files
 rm -rf "$OUTPUT_APK64"
@@ -32,3 +36,6 @@ cd $OUTPUT
 zip -r ../apk64.jar ./* -x libs.lock
 
 echo -e "\a"
+
+cd ..
+cp ./apk64.jar /storage/emulated/0/AppProjects/modfy/ModifyCore/libs/
