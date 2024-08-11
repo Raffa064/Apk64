@@ -1,11 +1,11 @@
 const http = require("http")
 
 const server = http.createServer((req, res) => {
-  res.writeHead(200, { "Content-Type": "text/plain" })
-  res.end("Ok")
-
   require("child_process").exec("bash ./autopacker.sh", (err, stdout) => {
     console.log(stdout)
+  }).on('exit', () => {
+    res.writeHead(200, { "Content-Type": "text/plain" })
+    res.end("Ok")
   })
 })
 
